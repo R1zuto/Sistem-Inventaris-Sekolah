@@ -1,5 +1,4 @@
 import { neon } from '@neondatabase/serverless';
-import { put, del } from '@vercel/blob';
 import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
 import ExcelJS from 'exceljs';
@@ -29,7 +28,8 @@ function items(sp) {
 
 export default async function handler(req, res) {
   const url = new URL(req.url, 'http://x'), sp = url.searchParams;
-  const [r, id] = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
+  const [r, pid] = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
+  const id = pid ?? sp.get('id'); // id bisa lewat /api/x/4 atau /api/x?id=4
   const M = req.method, send = (c, d) => res.status(c).json(d), ok = () => send(200, { ok: 1 });
   try {
     if (M !== 'GET' && !(req.headers['content-type'] || '').includes('application/json')) fail(400, 'Permintaan tidak valid.');
@@ -50,6 +50,14 @@ export default async function handler(req, res) {
     const admin = () => u.role === 'admin' || fail(403, 'Khusus admin.');
     if (r === 'me') return send(200, { id: u.id, nama: u.nama, role: u.role });
 
+    if (r === 'foto') {
+      const [x] = await q('SELECT user_id, foto FROM laporan_kerusakan WHERE id = $1', [+id]);
+      if (!x || !x.foto || (u.role !== 'admin' && x.user_id !== u.id)) fail(404, 'Foto tidak ditemukan.');
+      const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(x.foto);
+      res.setHeader('Content-Type', m[1]); res.setHeader('Cache-Control', 'private, max-age=86400');
+      return res.status(200).send(Buffer.from(m[2], 'base64'));
+    }
+
     if (r === 'stats') {
       admin();
       const k = await q('SELECT kondisi, COALESCE(SUM(jumlah),0)::int AS j FROM inventaris GROUP BY kondisi');
@@ -68,9 +76,7 @@ export default async function handler(req, res) {
         return ok();
       }
       if (M === 'DELETE') {
-        const f = await q('SELECT l.foto FROM laporan_kerusakan l JOIN inventaris i ON i.id = l.inventaris_id WHERE i.ruangan_id = $1 AND l.foto IS NOT NULL', [+id]);
         await q('DELETE FROM ruangan WHERE id = $1', [+id]);
-        if (f.length) await del(f.map(x => x.foto)).catch(() => {});
         return ok();
       }
     }
@@ -101,7 +107,7 @@ export default async function handler(req, res) {
     if (r === 'laporan') {
       if (M === 'GET') {
         const a = u.role === 'admin';
-        return send(200, await q(`SELECT l.*, u.nama AS pelapor, i.nama_barang, rr.nama_ruangan FROM laporan_kerusakan l JOIN users u ON u.id = l.user_id JOIN inventaris i ON i.id = l.inventaris_id JOIN ruangan rr ON rr.id = i.ruangan_id ${a ? '' : 'WHERE l.user_id = $1'} ORDER BY l.id DESC`, a ? [] : [u.id]));
+        return send(200, await q(`SELECT l.id, l.user_id, l.inventaris_id, l.deskripsi, (l.foto IS NOT NULL) AS ada_foto, l.status, l.catatan_admin, l.tanggal_lapor, u.nama AS pelapor, i.nama_barang, rr.nama_ruangan FROM laporan_kerusakan l JOIN users u ON u.id = l.user_id JOIN inventaris i ON i.id = l.inventaris_id JOIN ruangan rr ON rr.id = i.ruangan_id ${a ? '' : 'WHERE l.user_id = $1'} ORDER BY l.id DESC`, a ? [] : [u.id]));
       }
       if (M === 'POST') {
         if (u.role !== 'guru') fail(403, 'Khusus guru.');
@@ -109,11 +115,9 @@ export default async function handler(req, res) {
         if (!it || !des) fail(400, 'Pilih barang dan isi deskripsi kerusakan.');
         let foto = null;
         if (b.foto) {
-          const m = /^data:image\/(jpeg|png|webp);base64,(.+)$/.exec(b.foto);
-          if (!m) fail(400, 'Format foto tidak valid.');
-          const buf = Buffer.from(m[2], 'base64');
-          if (buf.length > 3e6) fail(400, 'Foto maksimal 3 MB.');
-          foto = (await put(`laporan/foto.${m[1] === 'jpeg' ? 'jpg' : m[1]}`, buf, { access: 'public', contentType: 'image/' + m[1], addRandomSuffix: true })).url;
+          if (typeof b.foto !== 'string' || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b.foto)) fail(400, 'Format foto tidak valid.');
+          if (b.foto.length > 1.5e6) fail(400, 'Foto terlalu besar (maksimal sekitar 1 MB).');
+          foto = b.foto;
         }
         await q('INSERT INTO laporan_kerusakan (user_id, inventaris_id, deskripsi, foto) VALUES ($1,$2,$3,$4)', [u.id, +b.inventaris_id, des, foto]);
         return ok();
