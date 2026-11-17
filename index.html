@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistem Inventaris Sekolah</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<section id="login" hidden>
+  <div class="lg-wrap">
+    <div class="lg-hero"><div class="lg-logo">📦</div><h1>Sistem Inventaris Sekolah</h1>
+      <p>Kelola barang, pantau kondisi, dan laporkan kerusakan fasilitas sekolah dengan mudah.</p>
+      <ul><li>📊 Dashboard &amp; grafik analisis</li><li>📝 Lapor kerusakan dengan foto</li><li>⬇️ Ekspor data ke Excel</li></ul></div>
+    <form class="lg-form" id="loginForm"><h2>Selamat Datang 👋</h2><p class="muted">Silakan masuk untuk melanjutkan</p>
+      <label>Username<div class="field"><span>👤</span><input id="u" placeholder="Masukkan username" required autocomplete="off" readonly onfocus="this.removeAttribute('readonly')"></div></label>
+      <label>Password<div class="field"><span>🔒</span><input id="p" type="password" placeholder="Masukkan password" required autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')">
+        <button type="button" class="eye" onclick="const p=$('#p');p.type=p.type==='password'?'text':'password'">👁</button></div></label>
+      <div id="err" class="error"></div><button class="btn lg">Masuk</button></form>
+  </div>
+</section>
+
+<div id="app" hidden>
+  <aside>
+    <div class="brand">📦 Inventaris<br><span>Sekolah</span></div>
+    <nav id="nav"></nav>
+    <div class="me"><b id="meName"></b><span id="meRole"></span><button class="btn sm ghost" id="logout">Keluar</button></div>
+  </aside>
+  <main><h2 id="title"></h2><div id="view"></div></main>
+</div>
+<div id="modal" class="modal" hidden><div class="card box" id="box"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
