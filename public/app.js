@@ -3,7 +3,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const badge = k => `<span class="badge b-${String(k).replace(' ', '-')}">${esc(k)}</span>`;
 const opts = (a, s) => a.map(x => `<option ${x === s ? 'selected' : ''}>${x}</option>`).join('');
 const tgl = d => new Date(d).toLocaleDateString('id-ID');
-const foto = f => f ? `<a href="${esc(f)}" target="_blank"><img class="thumb" src="${esc(f)}"></a>` : '-';
+const foto = r => r.ada_foto ? `<a href="/api/foto/${r.id}" target="_blank"><img class="thumb" src="/api/foto/${r.id}"></a>` : '-';
 const tbl = (h, rows, empty = 'Tidak ada data.') => `<div class="tbl"><table><tr>${h.map(x => `<th>${x}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${h.length}" class="muted">${empty}</td></tr>`}</table></div>`;
 const KOND = ['layak', 'tidak layak'], STATUS = ['Menunggu', 'Diproses', 'Selesai', 'Ditolak'], KAT = ['Kelas 7', 'Kelas 8', 'Kelas 9', 'Fasilitas', 'Kantor'];
 const MENU = {
@@ -14,8 +14,8 @@ let me = null, charts = [], rooms = [], fotoData = '', tm;
 
 async function api(path, method = 'GET', body) {
   const r = await fetch('/api/' + path, { method, headers: method === 'GET' ? {} : { 'Content-Type': 'application/json' }, body: method === 'GET' ? undefined : JSON.stringify(body || {}) });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) { if (r.status === 401 && me) location.reload(); throw new Error(d.error || 'Terjadi kesalahan.'); }
+  const t = await r.text(); let d = {}; try { d = JSON.parse(t); } catch {}
+  if (!r.ok) { if (r.status === 401 && me) location.reload(); throw new Error(d.error || `Server menjawab ${r.status}: ${t.replace(/<[^>]*>/g, ' ').trim().slice(0, 120)}`); }
   return d;
 }
 const run = async f => { try { await f(); } catch (e) { alert(e.message); } };
@@ -78,7 +78,7 @@ const VIEWS = {
   },
   async laporan() {
     const rs = await api('laporan');
-    $('#view').innerHTML = `<div class="card">${tbl(['Tanggal', 'Pelapor', 'Ruangan / Barang', 'Deskripsi', 'Foto', 'Status & Catatan'], rs.map(r => [tgl(r.tanggal_lapor), esc(r.pelapor), `${esc(r.nama_ruangan)}<br><b>${esc(r.nama_barang)}</b>`, esc(r.deskripsi), foto(r.foto),
+    $('#view').innerHTML = `<div class="card">${tbl(['Tanggal', 'Pelapor', 'Ruangan / Barang', 'Deskripsi', 'Foto', 'Status & Catatan'], rs.map(r => [tgl(r.tanggal_lapor), esc(r.pelapor), `${esc(r.nama_ruangan)}<br><b>${esc(r.nama_barang)}</b>`, esc(r.deskripsi), foto(r),
       `<div class="inl"><select id="s${r.id}">${opts(STATUS, r.status)}</select><input id="c${r.id}" placeholder="Catatan" value="${esc(r.catatan_admin)}"><button class="btn sm" onclick="simpanLap(${r.id})">Simpan</button></div>`]), 'Belum ada laporan.')}</div>`;
   },
   async guru() {
@@ -99,7 +99,7 @@ const VIEWS = {
   },
   async riwayat() {
     const rs = await api('laporan');
-    $('#view').innerHTML = `<div class="card">${tbl(['Tanggal', 'Ruangan', 'Barang', 'Deskripsi', 'Foto', 'Status', 'Catatan Admin'], rs.map(r => [tgl(r.tanggal_lapor), esc(r.nama_ruangan), esc(r.nama_barang), esc(r.deskripsi), foto(r.foto), badge(r.status), esc(r.catatan_admin)]), 'Belum ada laporan yang Anda kirim.')}</div>`;
+    $('#view').innerHTML = `<div class="card">${tbl(['Tanggal', 'Ruangan', 'Barang', 'Deskripsi', 'Foto', 'Status', 'Catatan Admin'], rs.map(r => [tgl(r.tanggal_lapor), esc(r.nama_ruangan), esc(r.nama_barang), esc(r.deskripsi), foto(r), badge(r.status), esc(r.catatan_admin)]), 'Belum ada laporan yang Anda kirim.')}</div>`;
   }
 };
 
@@ -125,8 +125,8 @@ function formItem(id) {
     <label>Keterangan<input name="keterangan" value="${esc(i.keterangan)}"></label>
     <div class="actions"><button type="button" class="btn ghost" onclick="closeModal()">Batal</button><button class="btn">Simpan</button></div></form>`);
 }
-const simpanItem = (e, id) => { const f = form(e); run(async () => { await api(id ? 'inventaris/' + id : 'inventaris', id ? 'PUT' : 'POST', f); closeModal(); tabelItem(); }); };
-const hapusItem = id => confirm('Hapus barang ini?') && run(async () => { await api('inventaris/' + id, 'DELETE'); tabelItem(); });
+const simpanItem = (e, id) => { const f = form(e); run(async () => { await api(id ? 'inventaris?id=' + id : 'inventaris', id ? 'PUT' : 'POST', f); closeModal(); tabelItem(); }); };
+const hapusItem = id => confirm('Hapus barang ini?') && run(async () => { await api('inventaris?id=' + id, 'DELETE'); tabelItem(); });
 const formRuang = () => openModal(`<h3>Tambah Ruangan</h3><form style="display:grid;gap:10px" onsubmit="simpanRuang(event)">
   <label>Nama Ruangan<input name="nama" required placeholder="mis. Ruang Musik"></label><label>Kategori<select name="kategori">${opts(KAT, 'Fasilitas')}</select></label>
   <div class="actions"><button type="button" class="btn ghost" onclick="closeModal()">Batal</button><button class="btn">Tambah</button></div></form>`);
@@ -134,19 +134,19 @@ const simpanRuang = e => { const f = form(e); run(async () => { await api('ruang
 const formHapusRuang = () => openModal(`<h3>Hapus Ruangan</h3><p class="muted">Semua barang dan laporan kerusakan di ruangan itu ikut terhapus. Tidak bisa dibatalkan.</p>
   <form style="display:grid;gap:10px" onsubmit="hapusRuang(event)"><select name="id" required><option value="">-- pilih ruangan --</option>${rooms.map(r => `<option value="${r.id}">${esc(r.nama_ruangan)} (${r.jenis} jenis barang)</option>`).join('')}</select>
   <div class="actions"><button type="button" class="btn ghost" onclick="closeModal()">Batal</button><button class="btn red">Hapus</button></div></form>`);
-const hapusRuang = e => { const f = form(e); confirm('Yakin hapus ruangan ini beserta semua isinya?') && run(async () => { await api('ruangan/' + f.id, 'DELETE'); closeModal(); go('inventaris'); }); };
+const hapusRuang = e => { const f = form(e); confirm('Yakin hapus ruangan ini beserta semua isinya?') && run(async () => { await api('ruangan?id=' + f.id, 'DELETE'); closeModal(); go('inventaris'); }); };
 
 /* ---------- Laporan ---------- */
-const simpanLap = id => run(async () => { await api('laporan/' + id, 'PUT', { status: $('#s' + id).value, catatan: $('#c' + id).value }); alert('Tersimpan.'); });
+const simpanLap = id => run(async () => { await api('laporan?id=' + id, 'PUT', { status: $('#s' + id).value, catatan: $('#c' + id).value }); alert('Tersimpan.'); });
 function pilihFoto(inp) {
   fotoData = ''; $('#lp').hidden = true;
   const file = inp.files[0]; if (!file) return;
   const img = new Image();
   img.onload = () => {
-    const sc = Math.min(1, 1000 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    const sc = Math.min(1, 800 / Math.max(img.width, img.height)), c = document.createElement('canvas');
     c.width = img.width * sc; c.height = img.height * sc;
     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    fotoData = c.toDataURL('image/jpeg', 0.75); $('#lp').src = fotoData; $('#lp').hidden = false;
+    fotoData = c.toDataURL('image/jpeg', 0.7); $('#lp').src = fotoData; $('#lp').hidden = false;
   };
   img.src = URL.createObjectURL(file);
 }
@@ -154,7 +154,7 @@ const kirimLap = e => { const f = form(e); run(async () => { await api('laporan'
 
 /* ---------- Guru ---------- */
 const tambahGuru = e => { const f = form(e); run(async () => { await api('guru', 'POST', f); go('guru'); }); };
-const resetPw = id => { const p = prompt('Password baru (min. 6 karakter):'); p && run(async () => { await api('guru/' + id, 'PUT', { password: p }); alert('Password diubah.'); }); };
-const hapusGuru = id => confirm('Hapus akun guru ini?') && run(async () => { await api('guru/' + id, 'DELETE'); go('guru'); });
+const resetPw = id => { const p = prompt('Password baru (min. 6 karakter):'); p && run(async () => { await api('guru?id=' + id, 'PUT', { password: p }); alert('Password diubah.'); }); };
+const hapusGuru = id => confirm('Hapus akun guru ini?') && run(async () => { await api('guru?id=' + id, 'DELETE'); go('guru'); });
 
 boot();
