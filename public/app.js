@@ -19,7 +19,6 @@ async function api(path, method = 'GET', body) {
   return d;
 }
 const run = async f => { try { await f(); } catch (e) { alert(e.message); } };
-const form = e => { e.preventDefault(); return Object.fromEntries(new FormData(e.target)); };
 const openModal = h => { $('#box').innerHTML = h; $('#modal').hidden = false; };
 const closeModal = () => $('#modal').hidden = true;
 $('#modal').onclick = e => e.target.id === 'modal' && closeModal();
@@ -83,7 +82,7 @@ const VIEWS = {
   },
   async guru() {
     const gs = await api('guru');
-    $('#view').innerHTML = `<div class="card" style="margin-bottom:14px"><h3>Tambah Guru</h3><form class="bar" onsubmit="tambahGuru(event)">
+    $('#view').innerHTML = `<div class="card" style="margin-bottom:14px"><h3>Tambah Guru</h3><form class="bar" data-act="guru">
       <input name="nama" placeholder="Nama lengkap" required><input name="username" placeholder="Username" required><input name="password" placeholder="Password (min. 6)" required><button class="btn">Tambah</button></form></div>
       <div class="card">${tbl(['Nama', 'Username', 'Aksi'], gs.map(g => [esc(g.nama), esc(g.username), `<button class="btn sm ghost" onclick="resetPw(${g.id})">Reset password</button><button class="btn sm red" onclick="hapusGuru(${g.id})">Hapus</button>`]), 'Belum ada akun guru.')}</div>`;
   },
@@ -91,7 +90,7 @@ const VIEWS = {
     const its = await api('inventaris'); let g = '', h = '';
     for (const i of its) { if (g !== i.nama_ruangan) { if (g) h += '</optgroup>'; g = i.nama_ruangan; h += `<optgroup label="${esc(g)}">`; } h += `<option value="${i.id}">${esc(i.nama_barang)}</option>`; }
     fotoData = '';
-    $('#view').innerHTML = `<form class="card" style="max-width:520px;display:grid;gap:12px" onsubmit="kirimLap(event)">
+    $('#view').innerHTML = `<form class="card" style="max-width:520px;display:grid;gap:12px" data-act="lapor">
       <label>Ruangan &amp; Barang<select name="inventaris_id" required><option value="">-- pilih barang --</option>${h}${g ? '</optgroup>' : ''}</select></label>
       <label>Deskripsi Kerusakan<textarea name="deskripsi" required placeholder="Jelaskan kerusakannya..."></textarea></label>
       <label>Foto Kerusakan (opsional)<input type="file" accept="image/*" onchange="pilihFoto(this)"></label><img id="lp" class="thumb big" hidden>
@@ -117,7 +116,7 @@ const tabelItem = () => run(async () => {
 });
 function formItem(id) {
   const i = id ? items.find(x => x.id === id) : { ruangan_id: +($('#fr').value || rooms[0].id), nama_barang: '', jumlah: 1, kondisi: 'layak', keterangan: '' };
-  openModal(`<h3>${id ? 'Edit' : 'Tambah'} Barang</h3><form style="display:grid;gap:10px" onsubmit="simpanItem(event,${id || 0})">
+  openModal(`<h3>${id ? 'Edit' : 'Tambah'} Barang</h3><form style="display:grid;gap:10px" data-act="item" data-id="${id || ''}">
     <label>Ruangan<select name="ruangan_id">${rooms.map(r => `<option value="${r.id}" ${r.id === i.ruangan_id ? 'selected' : ''}>${esc(r.nama_ruangan)}</option>`).join('')}</select></label>
     <label>Nama Barang<input name="nama" required value="${esc(i.nama_barang)}"></label>
     <label>Jumlah<input name="jumlah" type="number" min="1" required value="${i.jumlah}"></label>
@@ -125,16 +124,13 @@ function formItem(id) {
     <label>Keterangan<input name="keterangan" value="${esc(i.keterangan)}"></label>
     <div class="actions"><button type="button" class="btn ghost" onclick="closeModal()">Batal</button><button class="btn">Simpan</button></div></form>`);
 }
-const simpanItem = (e, id) => { const f = form(e); run(async () => { await api(id ? 'inventaris?id=' + id : 'inventaris', id ? 'PUT' : 'POST', f); closeModal(); tabelItem(); }); };
 const hapusItem = id => confirm('Hapus barang ini?') && run(async () => { await api('inventaris?id=' + id, 'DELETE'); tabelItem(); });
-const formRuang = () => openModal(`<h3>Tambah Ruangan</h3><form style="display:grid;gap:10px" onsubmit="simpanRuang(event)">
+const formRuang = () => openModal(`<h3>Tambah Ruangan</h3><form style="display:grid;gap:10px" data-act="ruang">
   <label>Nama Ruangan<input name="nama" required placeholder="mis. Ruang Musik"></label><label>Kategori<select name="kategori">${opts(KAT, 'Fasilitas')}</select></label>
   <div class="actions"><button type="button" class="btn ghost" onclick="closeModal()">Batal</button><button class="btn">Tambah</button></div></form>`);
-const simpanRuang = e => { const f = form(e); run(async () => { await api('ruangan', 'POST', f); closeModal(); go('inventaris'); }); };
 const formHapusRuang = () => openModal(`<h3>Hapus Ruangan</h3><p class="muted">Semua barang dan laporan kerusakan di ruangan itu ikut terhapus. Tidak bisa dibatalkan.</p>
-  <form style="display:grid;gap:10px" onsubmit="hapusRuang(event)"><select name="id" required><option value="">-- pilih ruangan --</option>${rooms.map(r => `<option value="${r.id}">${esc(r.nama_ruangan)} (${r.jenis} jenis barang)</option>`).join('')}</select>
+  <form style="display:grid;gap:10px" data-act="hapusruang"><select name="id" required><option value="">-- pilih ruangan --</option>${rooms.map(r => `<option value="${r.id}">${esc(r.nama_ruangan)} (${r.jenis} jenis barang)</option>`).join('')}</select>
   <div class="actions"><button type="button" class="btn ghost" onclick="closeModal()">Batal</button><button class="btn red">Hapus</button></div></form>`);
-const hapusRuang = e => { const f = form(e); confirm('Yakin hapus ruangan ini beserta semua isinya?') && run(async () => { await api('ruangan?id=' + f.id, 'DELETE'); closeModal(); go('inventaris'); }); };
 
 /* ---------- Laporan ---------- */
 const simpanLap = id => run(async () => { await api('laporan?id=' + id, 'PUT', { status: $('#s' + id).value, catatan: $('#c' + id).value }); alert('Tersimpan.'); });
@@ -150,11 +146,35 @@ function pilihFoto(inp) {
   };
   img.src = URL.createObjectURL(file);
 }
-const kirimLap = e => { const f = form(e); run(async () => { await api('laporan', 'POST', { ...f, foto: fotoData }); fotoData = ''; alert('Laporan terkirim!'); go('riwayat'); }); };
 
 /* ---------- Guru ---------- */
-const tambahGuru = e => { const f = form(e); run(async () => { await api('guru', 'POST', f); go('guru'); }); };
 const resetPw = id => { const p = prompt('Password baru (min. 6 karakter):'); p && run(async () => { await api('guru?id=' + id, 'PUT', { password: p }); alert('Password diubah.'); }); };
 const hapusGuru = id => confirm('Hapus akun guru ini?') && run(async () => { await api('guru?id=' + id, 'DELETE'); go('guru'); });
+
+/* ---------- Penangan semua form (tombol menampilkan status, error tampil di dalam form) ---------- */
+const ACTS = {
+  item: async (f, id) => { await api(id ? 'inventaris?id=' + id : 'inventaris', id ? 'PUT' : 'POST', f); closeModal(); tabelItem(); },
+  ruang: async f => { await api('ruangan', 'POST', f); closeModal(); go('inventaris'); },
+  hapusruang: async f => {
+    if (!f.id) throw new Error('Pilih ruangan terlebih dahulu.');
+    if (!confirm('Yakin hapus ruangan ini beserta semua isinya?')) return;
+    await api('ruangan?id=' + f.id, 'DELETE'); closeModal(); go('inventaris');
+  },
+  guru: async f => { await api('guru', 'POST', f); go('guru'); },
+  lapor: async f => { await api('laporan', 'POST', { ...f, foto: fotoData }); fotoData = ''; alert('Laporan terkirim!'); go('riwayat'); }
+};
+document.addEventListener('submit', async e => {
+  const fm = e.target, act = fm.dataset && fm.dataset.act;
+  if (!act) return;
+  e.preventDefault();
+  const btn = fm.querySelector('button:not([type=button]):not(.ghost)'), old = btn ? btn.textContent : '';
+  let m = fm.querySelector('.merr');
+  if (!m) { m = document.createElement('div'); m.className = 'error merr'; fm.appendChild(m); }
+  m.textContent = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Memproses...'; }
+  try { await ACTS[act](Object.fromEntries(new FormData(fm)), fm.dataset.id); }
+  catch (er) { m.textContent = er.message; }
+  finally { if (btn) { btn.disabled = false; btn.textContent = old; } }
+});
 
 boot();
