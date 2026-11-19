@@ -87,7 +87,10 @@ export default async function handler(req, res) {
       if (M === 'DELETE') { await q('DELETE FROM inventaris WHERE id = $1', [+id]); return ok(); }
       const v = [+b.ruangan_id, String(b.nama || '').trim(), Math.max(1, +b.jumlah || 1), KOND.includes(b.kondisi) ? b.kondisi : 'layak', String(b.keterangan || '').trim()];
       if (!v[0] || !v[1]) fail(400, 'Ruangan dan nama barang wajib diisi.');
-      if (M === 'POST') await q('INSERT INTO inventaris (ruangan_id, nama_barang, jumlah, kondisi, keterangan) VALUES ($1,$2,$3,$4,$5)', v);
+      if (M === 'POST') {
+        const [n] = await q('INSERT INTO inventaris (ruangan_id, nama_barang, jumlah, kondisi, keterangan) VALUES ($1,$2,$3,$4,$5) RETURNING id', v);
+        return send(200, { ok: 1, id: n.id });
+      }
       else if (M === 'PUT') await q('UPDATE inventaris SET ruangan_id=$1, nama_barang=$2, jumlah=$3, kondisi=$4, keterangan=$5, updated_at=now() WHERE id=$6', [...v, +id]);
       return ok();
     }
