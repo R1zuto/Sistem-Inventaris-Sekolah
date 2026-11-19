@@ -91,3 +91,5 @@ details.add summary{display:inline-block;cursor:pointer;list-style:none}details.
 .tools summary{padding:11px 20px}
 .tools details[open] form{margin-top:4px}
 @media(max-width:480px){.tools{padding:16px;gap:10px}.tools summary{padding:9px 12px;font-size:13px}.tools .x{display:none}}
+@keyframes fl{0%,65%{background:#fef08a}100%{background:transparent}}
+tr.flash td{animation:fl 3.5s ease-out}
