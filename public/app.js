@@ -112,12 +112,15 @@ const lihatRuang = id => run(async () => {
   const it = await api('inventaris?r=' + id);
   openModal(`<h3>${esc(rooms.find(r => r.id === id)?.nama_ruangan)}</h3>${tbl(['Barang', 'Jumlah', 'Kondisi', 'Keterangan'], it.map(i => [esc(i.nama_barang), i.jumlah, badge(i.kondisi), esc(i.keterangan)]), 'Belum ada barang.')}<div class="actions"><button class="btn ghost" onclick="closeModal()">Tutup</button></div>`);
 });
-const tabelItem = () => run(async () => {
+const tabelItem = focusId => run(async () => {
   const p = new URLSearchParams({ q: $('#q').value, r: $('#fr').value, k: $('#fk').value });
   $('#exp').href = '/api/export?' + p;
   window.items = await api('inventaris?' + p);
   $('#tb').innerHTML = tbl(['Ruangan', 'Barang', 'Jumlah', 'Kondisi', 'Keterangan', 'Aksi'], items.map(i => [esc(i.nama_ruangan), esc(i.nama_barang), i.jumlah, badge(i.kondisi), esc(i.keterangan),
     `<button class="btn sm" onclick="formItem(${i.id})">Edit</button><button class="btn sm red" onclick="hapusItem(${i.id})">Hapus</button>`]));
+  [...$('#tb').querySelectorAll('tr')].slice(1).forEach((tr, n) => { if (items[n]) tr.dataset.id = items[n].id; });
+  const row = focusId && $('#tb').querySelector(`tr[data-id="${focusId}"]`);
+  if (row) { if (row.scrollIntoView) row.scrollIntoView({ block: 'center', behavior: 'smooth' }); row.classList.add('flash'); }
 });
 function formItem(id) {
   const i = id ? items.find(x => x.id === id) : { ruangan_id: +($('#fr').value || rooms[0].id), nama_barang: '', jumlah: 1, kondisi: 'layak', keterangan: '' };
@@ -158,7 +161,13 @@ const hapusGuru = id => confirm('Hapus akun guru ini?') && run(async () => { awa
 
 /* ---------- Penangan semua form (tombol menampilkan status, error tampil di dalam form) ---------- */
 const ACTS = {
-  item: async (f, id) => { await api(id ? 'inventaris?id=' + id : 'inventaris', id ? 'PUT' : 'POST', f); toast('Barang disimpan ✓'); closeModal(); if ($('#fr')) $('#fr').value = f.ruangan_id; tabelItem(); },
+  item: async (f, id) => {
+    const r = await api(id ? 'inventaris?id=' + id : 'inventaris', id ? 'PUT' : 'POST', f);
+    toast('Barang disimpan ✓'); closeModal();
+    if ($('#fr')) $('#fr').value = f.ruangan_id;
+    if ($('#q')) $('#q').value = ''; if ($('#fk')) $('#fk').value = '';
+    tabelItem(id || r.id);
+  },
   ruang: async f => { await api('ruangan', 'POST', f); toast('Ruangan "' + f.nama + '" ditambahkan ✓'); closeModal(); go('inventaris'); },
   hapusruang: async f => {
     if (!f.id) throw new Error('Pilih ruangan terlebih dahulu.');
@@ -168,18 +177,25 @@ const ACTS = {
   guru: async f => { await api('guru', 'POST', f); toast('Akun guru ditambahkan ✓'); go('guru'); },
   lapor: async f => { await api('laporan', 'POST', { ...f, foto: fotoData }); fotoData = ''; alert('Laporan terkirim!'); go('riwayat'); }
 };
-document.addEventListener('submit', async e => {
-  const fm = e.target, act = fm.dataset && fm.dataset.act;
-  if (!act) return;
-  e.preventDefault();
+async function submitForm(fm) {
+  if (fm.dataset.busy || !fm.reportValidity()) return;
+  fm.dataset.busy = '1';
   const btn = fm.querySelector('button:not([type=button]):not(.ghost)'), old = btn ? btn.textContent : '';
   let m = fm.querySelector('.merr');
   if (!m) { m = document.createElement('div'); m.className = 'error merr'; fm.appendChild(m); }
   m.textContent = '';
   if (btn) { btn.disabled = true; btn.textContent = 'Memproses...'; }
-  try { await ACTS[act](Object.fromEntries(new FormData(fm)), fm.dataset.id); }
+  try { await ACTS[fm.dataset.act](Object.fromEntries(new FormData(fm)), fm.dataset.id); }
   catch (er) { m.textContent = er.message; }
-  finally { if (btn) { btn.disabled = false; btn.textContent = old; } }
+  finally { delete fm.dataset.busy; if (btn) { btn.disabled = false; btn.textContent = old; } }
+}
+// dua jalur supaya pasti terpanggil: klik tombol, atau event submit (tombol Enter)
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('form[data-act] button:not([type=button]):not(.ghost)');
+  if (b) { e.preventDefault(); submitForm(b.form); }
+});
+document.addEventListener('submit', e => {
+  if (e.target.dataset && e.target.dataset.act) { e.preventDefault(); submitForm(e.target); }
 });
 
 boot();
