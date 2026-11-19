@@ -95,6 +95,8 @@ details.add summary{display:inline-block;cursor:pointer;list-style:none}details.
 tr.flash td{animation:fl 3.5s ease-out}
 
 /* Login: foto sekolah & logo sekolah */
-#login{background:linear-gradient(rgba(15,23,42,.45),rgba(15,23,42,.6)),url('bg-sekolah.jpg') center/cover no-repeat fixed}
+#login{background:linear-gradient(135deg,#1e3a8a,#2563eb 50%,#7c3aed)}
+.lg-hero{background:linear-gradient(rgba(15,23,42,.5),rgba(15,23,42,.78)),url('bg-sekolah.jpg') center/cover no-repeat}
+.lg-hero::after{display:none}
 .lg-logo{width:84px;height:84px;padding:6px;background:#fff;border-radius:18px;box-shadow:0 8px 20px #0006}
 .lg-logo img{width:100%;height:100%;object-fit:contain;display:block;border-radius:12px}
