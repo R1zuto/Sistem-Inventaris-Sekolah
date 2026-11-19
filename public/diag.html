@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Diagnosa</title></head>
+<body style="font-family:system-ui,sans-serif;padding:20px;max-width:900px;margin:auto">
+<h2>Diagnosa Sistem Inventaris</h2>
+<p>Login dulu di halaman utama (admin), lalu buka halaman ini dan klik tombol. Tes membuat data bernama <b>ZZ-TES</b> lalu menghapusnya lagi.</p>
+<button id="go" style="padding:10px 18px;font-size:16px;cursor:pointer">Jalankan tes</button>
+<pre id="out" style="white-space:pre-wrap;word-break:break-word;background:#111;color:#4ade80;padding:14px;margin-top:14px;min-height:120px;border-radius:8px"></pre>
+<script>
+const out = document.getElementById('out'), log = t => out.textContent += t + '\n';
+async function call(method, url, body) {
+  const t0 = performance.now();
+  try {
+    const r = await fetch(url, { method, headers: method === 'GET' ? {} : { 'Content-Type': 'application/json' }, body: method === 'GET' ? undefined : JSON.stringify(body || {}) });
+    const t = await r.text();
+    log(method + ' ' + url + '  ->  ' + r.status + ' (' + Math.round(performance.now() - t0) + ' ms)\n    ' + t.slice(0, 220).replace(/\s+/g, ' '));
+    try { return JSON.parse(t); } catch { return null; }
+  } catch (e) { log(method + ' ' + url + '  ->  GAGAL: ' + e.message); return null; }
+}
+document.getElementById('go').onclick = async () => {
+  out.textContent = '';
+  await call('GET', '/api/me');
+  await call('POST', '/api/ruangan', { nama: 'ZZ-TES', kategori: 'Fasilitas' });
+  const rs = await call('GET', '/api/ruangan'), z = (rs || []).find(x => x.nama_ruangan === 'ZZ-TES');
+  if (z) {
+    await call('POST', '/api/inventaris', { ruangan_id: String(z.id), nama: 'ZZ-BARANG', jumlah: '2', kondisi: 'layak', keterangan: '' });
+    const its = await call('GET', '/api/inventaris?r=' + z.id), b = (its || [])[0];
+    if (b) await call('PUT', '/api/inventaris?id=' + b.id, { ruangan_id: String(z.id), nama: 'ZZ-BARANG2', jumlah: '3', kondisi: 'tidak layak', keterangan: 'x' });
+    await call('DELETE', '/api/ruangan?id=' + z.id);
+  }
+  log('\nSelesai.');
+};
+</script></body></html>
