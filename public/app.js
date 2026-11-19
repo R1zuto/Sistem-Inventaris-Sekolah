@@ -18,6 +18,11 @@ async function api(path, method = 'GET', body) {
   if (!r.ok) { if (r.status === 401 && me) location.reload(); throw new Error(d.error || `Server menjawab ${r.status}: ${t.replace(/<[^>]*>/g, ' ').trim().slice(0, 120)}`); }
   return d;
 }
+function toast(m) {
+  const t = document.createElement('div'); t.textContent = m;
+  t.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#166534;color:#fff;padding:12px 20px;border-radius:10px;z-index:99;font-weight:600;box-shadow:0 8px 24px #0005';
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2800);
+}
 const run = async f => { try { await f(); } catch (e) { alert(e.message); } };
 const openModal = h => { $('#box').innerHTML = h; $('#modal').hidden = false; };
 const closeModal = () => $('#modal').hidden = true;
@@ -124,7 +129,7 @@ function formItem(id) {
     <label>Keterangan<input name="keterangan" value="${esc(i.keterangan)}"></label>
     <div class="actions"><button type="button" class="btn ghost" onclick="closeModal()">Batal</button><button class="btn">Simpan</button></div></form>`);
 }
-const hapusItem = id => confirm('Hapus barang ini?') && run(async () => { await api('inventaris?id=' + id, 'DELETE'); tabelItem(); });
+const hapusItem = id => confirm('Hapus barang ini?') && run(async () => { await api('inventaris?id=' + id, 'DELETE'); toast('Barang dihapus ✓'); tabelItem(); });
 const formRuang = () => openModal(`<h3>Tambah Ruangan</h3><form style="display:grid;gap:10px" data-act="ruang">
   <label>Nama Ruangan<input name="nama" required placeholder="mis. Ruang Musik"></label><label>Kategori<select name="kategori">${opts(KAT, 'Fasilitas')}</select></label>
   <div class="actions"><button type="button" class="btn ghost" onclick="closeModal()">Batal</button><button class="btn">Tambah</button></div></form>`);
@@ -153,14 +158,14 @@ const hapusGuru = id => confirm('Hapus akun guru ini?') && run(async () => { awa
 
 /* ---------- Penangan semua form (tombol menampilkan status, error tampil di dalam form) ---------- */
 const ACTS = {
-  item: async (f, id) => { await api(id ? 'inventaris?id=' + id : 'inventaris', id ? 'PUT' : 'POST', f); closeModal(); tabelItem(); },
-  ruang: async f => { await api('ruangan', 'POST', f); closeModal(); go('inventaris'); },
+  item: async (f, id) => { await api(id ? 'inventaris?id=' + id : 'inventaris', id ? 'PUT' : 'POST', f); toast('Barang disimpan ✓'); closeModal(); if ($('#fr')) $('#fr').value = f.ruangan_id; tabelItem(); },
+  ruang: async f => { await api('ruangan', 'POST', f); toast('Ruangan "' + f.nama + '" ditambahkan ✓'); closeModal(); go('inventaris'); },
   hapusruang: async f => {
     if (!f.id) throw new Error('Pilih ruangan terlebih dahulu.');
     if (!confirm('Yakin hapus ruangan ini beserta semua isinya?')) return;
-    await api('ruangan?id=' + f.id, 'DELETE'); closeModal(); go('inventaris');
+    await api('ruangan?id=' + f.id, 'DELETE'); toast('Ruangan dihapus ✓'); closeModal(); go('inventaris');
   },
-  guru: async f => { await api('guru', 'POST', f); go('guru'); },
+  guru: async f => { await api('guru', 'POST', f); toast('Akun guru ditambahkan ✓'); go('guru'); },
   lapor: async f => { await api('laporan', 'POST', { ...f, foto: fotoData }); fotoData = ''; alert('Laporan terkirim!'); go('riwayat'); }
 };
 document.addEventListener('submit', async e => {
