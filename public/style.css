@@ -93,3 +93,8 @@ details.add summary{display:inline-block;cursor:pointer;list-style:none}details.
 @media(max-width:480px){.tools{padding:16px;gap:10px}.tools summary{padding:9px 12px;font-size:13px}.tools .x{display:none}}
 @keyframes fl{0%,65%{background:#fef08a}100%{background:transparent}}
 tr.flash td{animation:fl 3.5s ease-out}
+
+/* Login: foto sekolah & logo sekolah */
+#login{background:linear-gradient(rgba(15,23,42,.45),rgba(15,23,42,.6)),url('bg-sekolah.jpg') center/cover no-repeat fixed}
+.lg-logo{width:84px;height:84px;padding:6px;background:#fff;border-radius:18px;box-shadow:0 8px 20px #0006}
+.lg-logo img{width:100%;height:100%;object-fit:contain;display:block;border-radius:12px}
